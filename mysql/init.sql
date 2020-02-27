@@ -46,4 +46,20 @@ BEGIN
     VALUES (ans1, ans2);
 END //
 
+CREATE PROCEDURE approve_question(IN id integer)
+BEGIN
+    DECLARE ans1 varchar(128);
+    DECLARE ans2 varchar(128);
+
+    SELECT Answer1, Answer2
+    INTO ans1, ans2
+    FROM USER_SUBMITTED_QUESTIONS
+    WHERE QuestionID = id;
+
+    DELETE FROM USER_SUBMITTED_QUESTIONS
+    WHERE QuestionID = id;
+
+    CALL add_question(ans1, ans2);
+END //
+
 DELIMITER ;
