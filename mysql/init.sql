@@ -37,3 +37,13 @@ CREATE TABLE USER_SUBMITTED_QUESTIONS (
     Answer1 varchar(128) not null,
     Answer2 varchar(128) not null
 );
+
+DELIMITER //
+
+CREATE PROCEDURE add_question(IN ans1 varchar(128), IN ans2 varchar(128))
+BEGIN
+    INSERT INTO QUESTION_POOL(Answer1, Answer2)
+    VALUES (ans1, ans2);
+END //
+
+DELIMITER ;
