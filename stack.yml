@@ -1,0 +1,34 @@
+version: '3.3'
+
+services:
+  mysql:
+    image: mysql
+    restart: always
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: pass
+      MYSQL_DATABASE: database
+
+  server:
+    build: ./server
+    depends_on:
+      - mysql
+    environment:
+      DB_PASS: pass
+      DB_USER: root
+      DB_HOST: mysql
+      DB_NAME: database
+      DB_MAX_RETRIES: 5
+
+  administrator:
+    build: ./administrator
+    stdin_open: true
+    tty: true
+    depends_on:
+      - mysql
+    environment:
+      DB_PASS: pass
+      DB_USER: root
+      DB_HOST: mysql
+      DB_NAME: database
+      DB_MAX_RETRIES: 5
