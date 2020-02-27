@@ -48,6 +48,8 @@ def connect_to_db():
             passwd=os.environ['DB_PASS'],
             database=os.environ['DB_NAME']
         )
+
+        cursor = db.cursor()
     except mysql.connector.errors.InterfaceError:
         if retry_count < 5:
             retry_count -=- 1
@@ -57,8 +59,6 @@ def connect_to_db():
         else:
             logging.error('Maximum number of retries reached.')
             raise
-
-    cursor = db.cursor()
 
     logging.info('Connected to DB')
 
