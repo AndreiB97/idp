@@ -130,4 +130,10 @@ BEGIN
     LIMIT 1;
 END //
 
+CREATE PROCEDURE add_user_submitted_question(IN ans1 varchar(128), IN ans2 varchar(128))
+BEGIN
+    INSERT INTO USER_SUBMITTED_QUESTIONS(Answer1, Answer2)
+    VALUES (ans1, ans2);
+END //
+
 DELIMITER ;
