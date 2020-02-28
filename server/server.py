@@ -6,20 +6,27 @@ from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 
-cursor = None
+db = None
 retry_count = 0
 
 
 @app.route('/questions', methods=['GET'])
 def get_question():
+    response = {}
+    cursor = db.cursor()
+
     cursor.callproc('get_question')
-    response = {
-        'id': 'asdf',
-        'red': 'red',
-        'red_stats': 'red_stats',
-        'blue': 'blue',
-        'blue_stats': 'blue_stats'
-    }
+
+    for result in cursor.stored_results():
+        for row in result.fetchall():
+            response = {
+                'id': row[0],
+                'red': row[1],
+                'blue': row[2],
+                'red_stats': row[3],
+                'blue_stats': row[4],
+                'score': row[5]
+            }
 
     return jsonify(response), 200
 
@@ -39,7 +46,7 @@ def submit_answer():
 
 
 def connect_to_db():
-    global cursor, retry_count
+    global db, retry_count
 
     try:
         db = mysql.connector.connect(
@@ -48,8 +55,6 @@ def connect_to_db():
             passwd=os.environ['DB_PASS'],
             database=os.environ['DB_NAME']
         )
-
-        cursor = db.cursor()
     except mysql.connector.errors.InterfaceError:
         if retry_count < 5:
             retry_count -=- 1
