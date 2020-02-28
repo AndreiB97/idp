@@ -122,4 +122,12 @@ BEGIN
     CALL add_question(ans1, ans2);
 END //
 
+CREATE PROCEDURE get_question()
+BEGIN
+    SELECT *
+    FROM QUESTION_POOL
+    ORDER BY RAND()
+    LIMIT 1;
+END //
+
 DELIMITER ;
