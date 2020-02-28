@@ -70,4 +70,4 @@ def connect_to_db():
 
 if __name__ == '__main__':
     connect_to_db()
-    app.run(port=80, host='127.0.0.1', debug=True)
+    app.run(port=80, host='0.0.0.0', debug=True)
