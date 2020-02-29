@@ -1,9 +1,9 @@
+from tkinter import messagebox
 from tkinter import *
 import requests
 
 # TODO add like dislike button?
 # TODO check submitted answer length
-# TODO fit text to button
 
 window = None
 
@@ -51,9 +51,9 @@ def init_ui_widgets():
 
     bottom_frame = Frame(window)
     red_button = Button(bottom_frame, text='Left', bg='red', fg='white',
-                        command=pick_red, height=6, width=32, font=('calibri', 20), wraplength=400)
+                        command=pick_red, height=5, width=32, font=('calibri', 20), wraplength=400)
     blue_button = Button(bottom_frame, text='Right', bg='blue', fg='white',
-                         command=pick_blue, height=6, width=32, font=('calibri', 20), wraplength=400)
+                         command=pick_blue, height=5, width=32, font=('calibri', 20), wraplength=400)
     next_button = Button(bottom_frame, text='>', bg='#555555', fg='white',
                          command=get_next, height=1, width=1, font=('calibri', 12))
     prev_button = Button(bottom_frame, text='<', bg='#555555', fg='white',
@@ -174,11 +174,17 @@ def send_question():
         'answer2': answer_entry_2.get()
     }
 
+    if len(answer_entry_1.get()) == 0 or len(answer_entry_2.get()) == 0:
+        messagebox.showinfo('Error', 'Answer cannot be blank')
+    elif len(answer_entry_1.get()) > 128 or len(answer_entry_2.get()) > 128:
+        messagebox.showinfo('Error', 'Answer length must be 128 or less characters')
+    else:
+        requests.put('http://127.0.0.1/questions', params=para)
+
+        display_vote_ui()
+
     answer_entry_1.delete(0, END)
     answer_entry_2.delete(0, END)
-
-    requests.put('http://127.0.0.1/questions', params=para)
-    display_vote_ui()
 
 
 def get_question():
@@ -201,11 +207,11 @@ def display_result():
 
     if questions[current_question]['state'] == VOTED_RED:
         check_mark_label.configure(bg='red')
-        check_mark_label.grid(row=0, column=1, padx=(0, 170), pady=(0, 80))
+        check_mark_label.grid(row=0, column=1, padx=(0, 370), pady=(0, 140))
         red_button.configure(relief=SUNKEN)
     elif questions[current_question]['state'] == VOTED_BLUE:
         check_mark_label.configure(bg='blue')
-        check_mark_label.grid(row=0, column=2, padx=(0, 170), pady=(0, 80))
+        check_mark_label.grid(row=0, column=2, padx=(0, 370), pady=(0, 140))
         blue_button.configure(relief=SUNKEN)
 
 
