@@ -30,6 +30,10 @@ def get_question():
                 'score': row[5]
             }
 
+    cursor.callproc('increase_view_count', (response['id'], ))
+
+    db.commit()
+
     return jsonify(response), 200
 
 
