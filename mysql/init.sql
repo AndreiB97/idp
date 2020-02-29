@@ -175,4 +175,18 @@ BEGIN
     WHERE QuestionID = id;
 END //
 
+CREATE PROCEDURE score_question(IN id integer, IN new_score integer)
+BEGIN
+    DECLARE old_score integer;
+
+    SELECT Score
+    INTO old_score
+    FROM QUESTION_POOL
+    WHERE QuestionID = id;
+
+    UPDATE QUESTION_POOL
+    SET Score = old_score + new_score
+    WHERE QuestionID = id;
+END //
+
 DELIMITER ;
