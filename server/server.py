@@ -9,8 +9,6 @@ app = Flask(__name__)
 db = None
 retry_count = 0
 
-# TODO finish submit_answer
-
 
 @app.route('/questions', methods=['GET'])
 def get_question():
@@ -51,7 +49,18 @@ def submit_question():
 @app.route('/answers', methods=['PUT'])
 def submit_answer():
     args = request.args
-    print(args)
+
+    app.logger.info(f'Received answer {args}')
+
+    cursor = db.cursor()
+
+    if args['answer'] == 'red':
+        cursor.callproc('increase_answer_count', (args['id'], 1))
+    elif args['answer'] == 'blue':
+        cursor.callproc('increase_answer_count', (args['id'], 2))
+
+    db.commit()
+
     return jsonify({}), 200
 
 
