@@ -136,4 +136,29 @@ BEGIN
     VALUES (ans1, ans2);
 END //
 
+CREATE PROCEDURE increase_answer_count(IN id integer, IN answer_num integer)
+BEGIN
+    DECLARE old_count integer;
+
+    IF answer_num = 1 THEN
+        SELECT Answer1_count
+        INTO old_count
+        FROM QUESTION_POOL
+        WHERE QuestionID = id;
+
+        UPDATE QUESTION_POOL
+        SET Answer1_count = old_count + 1
+        WHERE  QuestionID = id;
+    ELSEIF answer_num = 2 THEN
+        SELECT Answer2_count
+        INTO old_count
+        FROM QUESTION_POOL
+        WHERE QuestionID = id;
+
+        UPDATE QUESTION_POOL
+        SET Answer2_count = old_count + 1
+        WHERE  QuestionID = id;
+    END IF;
+END //
+
 DELIMITER ;
