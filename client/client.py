@@ -2,6 +2,8 @@ from tkinter import *
 import requests
 
 # TODO add like dislike button?
+# TODO check submitted answer length
+# TODO fit text to button
 
 window = None
 
@@ -49,13 +51,13 @@ def init_ui_widgets():
 
     bottom_frame = Frame(window)
     red_button = Button(bottom_frame, text='Left', bg='red', fg='white',
-                        command=pick_red, height=3, width=15, font=('calibri', 20))
+                        command=pick_red, height=6, width=32, font=('calibri', 20))
     blue_button = Button(bottom_frame, text='Right', bg='blue', fg='white',
-                         command=pick_blue, height=3, width=15, font=('calibri', 20))
+                         command=pick_blue, height=6, width=32, font=('calibri', 20))
     next_button = Button(bottom_frame, text='>', bg='#555555', fg='white',
                          command=get_next, height=1, width=1, font=('calibri', 12))
     prev_button = Button(bottom_frame, text='<', bg='#555555', fg='white',
-                         command=get_prev, height=1, width=1, font=('calibri', 12))
+                         command=get_prev, height=1, width=1, font=('calibri', 12), state=DISABLED)
     submit_button = Button(bottom_frame, text='Submit question',
                            command=display_submit_ui, font=('calibri', 11))
 
@@ -143,6 +145,7 @@ def get_next():
     new_question = get_question()
     questions.append(new_question)
     current_question -=- 1
+    prev_button.config(state=NORMAL)
     display_question()
 
 
@@ -155,6 +158,9 @@ def get_prev():
 
     if current_question > 0:
         current_question -= 1
+
+        if current_question == 0:
+            prev_button.config(state=DISABLED)
 
     if questions[current_question]['state'] == NOT_VOTED:
         display_question()
