@@ -68,6 +68,21 @@ def submit_answer():
     return jsonify({}), 200
 
 
+@app.route('/score', methods=['PUT'])
+def score():
+    args = request.args
+
+    app.logger.info(f'Received score {args}')
+
+    cursor = db.cursor()
+
+    cursor.callproc('score_question', (args['id'], args['score']))
+
+    db.commit()
+
+    return jsonify({}), 200
+
+
 def connect_to_db():
     global db, retry_count
 
