@@ -1,6 +1,6 @@
 import mysql.connector
 import os
-import logging
+from logging import INFO
 from time import sleep
 from flask import Flask, jsonify, request
 
@@ -8,6 +8,8 @@ app = Flask(__name__)
 
 db = None
 retry_count = 0
+
+# TODO finish submit_answer
 
 
 @app.route('/questions', methods=['GET'])
@@ -19,6 +21,8 @@ def get_question():
 
     for result in cursor.stored_results():
         for row in result.fetchall():
+            app.logger.info(f'Sending question {row}')
+
             response = {
                 'id': row[0],
                 'red': row[1],
@@ -34,7 +38,13 @@ def get_question():
 @app.route('/questions', methods=['PUT'])
 def submit_question():
     args = request.args
-    print(args)
+    cursor = db.cursor()
+
+    cursor.callproc('add_user_submitted_question', [args['answer1'], args['answer2']])
+
+    db.commit()
+    app.logger.info(f'Added user submitted question {args["answer1"]}, {args["answer2"]}')
+
     return jsonify({}), 200
 
 
@@ -55,19 +65,20 @@ def connect_to_db():
             passwd=os.environ['DB_PASS'],
             database=os.environ['DB_NAME']
         )
+
+        app.logger.info('Connected to DB')
     except mysql.connector.errors.InterfaceError:
         if retry_count < 5:
             retry_count -=- 1
-            logging.warning(f'Unable to connect to DB. Retry #{retry_count}.')
+            app.logger.warning(f'Unable to connect to DB. Retry #{retry_count}.')
             sleep(1)
             connect_to_db()
         else:
-            logging.error('Maximum number of retries reached.')
+            app.logger.error('Maximum number of retries reached.')
             raise
-
-    logging.info('Connected to DB')
 
 
 if __name__ == '__main__':
+    app.logger.setLevel(INFO)
     connect_to_db()
-    app.run(port=80, host='0.0.0.0', debug=True)
+    app.run(port=80, host='0.0.0.0')
