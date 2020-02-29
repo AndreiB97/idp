@@ -51,9 +51,9 @@ def init_ui_widgets():
 
     bottom_frame = Frame(window)
     red_button = Button(bottom_frame, text='Left', bg='red', fg='white',
-                        command=pick_red, height=6, width=32, font=('calibri', 20))
+                        command=pick_red, height=6, width=32, font=('calibri', 20), wraplength=400)
     blue_button = Button(bottom_frame, text='Right', bg='blue', fg='white',
-                         command=pick_blue, height=6, width=32, font=('calibri', 20))
+                         command=pick_blue, height=6, width=32, font=('calibri', 20), wraplength=400)
     next_button = Button(bottom_frame, text='>', bg='#555555', fg='white',
                          command=get_next, height=1, width=1, font=('calibri', 12))
     prev_button = Button(bottom_frame, text='<', bg='#555555', fg='white',
