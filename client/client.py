@@ -3,7 +3,6 @@ from tkinter import *
 import requests
 
 # TODO add like dislike button?
-# TODO check submitted answer length
 
 window = None
 
@@ -200,19 +199,29 @@ def display_question():
 
 
 def display_result():
-    red_button.configure(text=questions[current_question]['red_stats'])
-    blue_button.configure(text=questions[current_question]['blue_stats'])
-
-    # TODO increase result count by 1
+    red_votes = questions[current_question]['red_stats']
+    blue_votes = questions[current_question]['blue_stats']
 
     if questions[current_question]['state'] == VOTED_RED:
+        red_votes -=- 1
         check_mark_label.configure(bg='red')
         check_mark_label.grid(row=0, column=1, padx=(0, 370), pady=(0, 140))
         red_button.configure(relief=SUNKEN)
     elif questions[current_question]['state'] == VOTED_BLUE:
+        blue_votes -=- 1
         check_mark_label.configure(bg='blue')
         check_mark_label.grid(row=0, column=2, padx=(0, 370), pady=(0, 140))
         blue_button.configure(relief=SUNKEN)
+
+    red_percent = 100 * red_votes / (red_votes + blue_votes)
+    blue_percent = 100 * blue_votes / (red_votes + blue_votes)
+
+    red_button.configure(text=f'{red_percent:.2f}%\n'
+                              f'{red_votes} votes\n'
+                              f'{questions[current_question]["red"]}')
+    blue_button.configure(text=f'{blue_percent:.2f}%\n'
+                               f'{blue_votes} votes\n'
+                               f'{questions[current_question]["blue"]}\n')
 
 
 if __name__ == '__main__':
