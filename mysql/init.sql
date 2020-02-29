@@ -157,8 +157,22 @@ BEGIN
 
         UPDATE QUESTION_POOL
         SET Answer2_count = old_count + 1
-        WHERE  QuestionID = id;
+        WHERE QuestionID = id;
     END IF;
+END //
+
+CREATE PROCEDURE increase_view_count(IN id integer)
+BEGIN
+    DECLARE old_count integer;
+
+    SELECT Views
+    INTO old_count
+    FROM QUESTION_POOL
+    WHERE QuestionID = id;
+
+    UPDATE QUESTION_POOL
+    SET Views = old_count + 1
+    WHERE QuestionID = id;
 END //
 
 DELIMITER ;
