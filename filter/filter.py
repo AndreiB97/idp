@@ -54,7 +54,57 @@ def filter_user_submitted_questions():
                     break
 
 
+def get_rerun_timer():
+    timer = 0
+
+    rerun_seconds = os.environ.get('FILTER_RERUN_TIMER_SECONDS')
+    rerun_minutes = os.environ.get('FILTER_RERUN_TIMER_MINUTES')
+    rerun_hours = os.environ.get('FILTER_RERUN_TIMER_HOURS')
+    rerun_days = os.environ.get('FILTER_RERUN_TIMER_DAYS')
+
+    try:
+        if rerun_seconds is not None:
+            timer += int(rerun_seconds)
+    except TypeError:
+        logger.warning('Type of FILTER_RERUN_TIMER_SECONDS is not int')
+        logger.debug(f'FILTER_RERUN_TIMER_SECONDS={rerun_seconds}')
+
+    try:
+        if rerun_minutes is not None:
+            timer += int(rerun_minutes) * 60
+    except TypeError:
+        logger.warning('Type of FILTER_RERUN_TIMER_MINUTES is not int')
+        logger.debug(f'FILTER_RERUN_TIMER_MINUTES={rerun_minutes}')
+
+    try:
+        if rerun_hours is not None:
+            timer += int(rerun_hours) * 60 * 60
+    except TypeError:
+        logger.warning('Type of FILTER_RERUN_TIMER_HOURS is not int')
+        logger.debug(f'FILTER_RERUN_TIMER_HOURS={rerun_hours}')
+
+    try:
+        if rerun_days is not None:
+            timer += int(rerun_days) * 24 * 60 * 60
+    except TypeError:
+        logger.warning('Type of FILTER_RERUN_TIMER_DAYS is not int')
+        logger.debug(f'FILTER_RERUN_TIMER_DAYS={rerun_days}')
+
+    if timer == 0:
+        timer = 24 * 60 * 60
+        logger.debug(f'Using default timer value {timer}')
+
+    return timer
+
+
 if __name__ == '__main__':
     init_logger()
     connect_to_db()
-    filter_user_submitted_questions()
+
+    timer = get_rerun_timer()
+
+    while True:
+        filter_user_submitted_questions()
+        sleep(timer)
+
+
