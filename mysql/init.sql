@@ -221,11 +221,11 @@ BEGIN
     DECLARE ans2 varchar(128);
     DECLARE ans1_count integer;
     DECLARE ans2_count integer;
-    DECLARE views integer;
-    DECLARE score integer;
+    DECLARE old_views integer;
+    DECLARE old_score integer;
 
     SELECT Answer1, Answer2, Answer1_count, Answer2_count, Views, Score
-    INTO ans1, ans2, ans1_count, ans2_count, views, score
+    INTO ans1, ans2, ans1_count, ans2_count, old_views, old_score
     FROM QUESTION_POOL
     WHERE QuestionID = id;
 
@@ -233,7 +233,7 @@ BEGIN
     WHERE QuestionID = id;
 
     INSERT INTO FLAGGED_LOW_SCORE_QUESTIONS(Answer1, Answer2, Answer1_count, Answer2_count, Views, Score)
-    VALUES (ans1, ans2, ans1_count, ans2_count, views, score);
+    VALUES (ans1, ans2, ans1_count, ans2_count, old_views, old_score);
 END //
 
 DELIMITER ;
