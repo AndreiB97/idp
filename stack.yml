@@ -38,5 +38,16 @@ services:
       DB_NAME: db
       DB_MAX_RETRIES: 5
 
+  filter:
+    build: ./filter
+    depends_on:
+      - mysql
+    environment:
+      DB_PASS: pass
+      DB_USER: root
+      DB_HOST: mysql
+      DB_NAME: db
+      DB_MAX_RETRIES: 5
+
 volumes:
   mysql-volume: {}
