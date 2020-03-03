@@ -106,7 +106,7 @@ def filter_low_score_questions():
             id = row[0]
             score = row[5]
             views = row[6]
-            if views > 100 and score < views * 0.25:
+            if views > 100 and score < views * 0.10:
                 cursor.callproc('flag_low_score_question', (id, ))
                 logger.info(f'Flagging {row} for low score')
                 db.commit()
