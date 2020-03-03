@@ -215,4 +215,25 @@ BEGIN
     FROM QUESTION_POOL;
 END //
 
+CREATE PROCEDURE flag_low_score_question(IN id integer)
+BEGIN
+    DECLARE ans1 varchar(128);
+    DECLARE ans2 varchar(128);
+    DECLARE ans1_count integer;
+    DECLARE ans2_count integer;
+    DECLARE views integer;
+    DECLARE score integer;
+
+    SELECT Answer1, Answer2, Answer1_count, Answer2_count, Views, Score
+    INTO ans1, ans2, ans1_count, ans2_count, views, score
+    FROM QUESTION_POOL
+    WHERE QuestionID = id;
+
+    DELETE FROM QUESTION_POOL
+    WHERE QuestionID = id;
+
+    INSERT INTO FLAGGED_LOW_SCORE_QUESTIONS(Answer1, Answer2, Answer1_count, Answer2_count, Views, Score)
+    VALUES (ans1, ans2, ans1_count, ans2_count, views, score);
+END //
+
 DELIMITER ;
