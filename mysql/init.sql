@@ -209,4 +209,10 @@ BEGIN
     VALUES (ans1, ans2);
 END //
 
+CREATE PROCEDURE get_question_pool()
+BEGIN
+    SELECT *
+    FROM QUESTION_POOL;
+END //
+
 DELIMITER ;
