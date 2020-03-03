@@ -192,4 +192,21 @@ BEGIN
 END //
 
 
+CREATE PROCEDURE flag_user_submitted_question(IN id integer)
+BEGIN
+    DECLARE ans1 varchar(128);
+    DECLARE ans2 varchar(128);
+
+    SELECT Answer1, Answer2
+    INTO ans1, ans2
+    FROM USER_SUBMITTED_QUESTIONS
+    WHERE QuestionID = id;
+
+    DELETE FROM USER_SUBMITTED_QUESTIONS
+    WHERE QuestionID = id;
+
+    INSERT INTO FLAGGED_OFFENSIVE_QUESTIONS(Answer1, Answer2)
+    VALUES (ans1, ans2);
+END //
+
 DELIMITER ;
