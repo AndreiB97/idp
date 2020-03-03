@@ -97,6 +97,21 @@ def get_rerun_timer():
     return timer
 
 
+def filter_low_score_questions():
+    cursor = db.cursor()
+    cursor.callproc('get_question_pool')
+
+    for result in cursor.stored_results():
+        for row in result.fetchall():
+            id = row[0]
+            score = row[5]
+            views = row[6]
+            if views > 100 and score < views * 0.25:
+                cursor.callproc('flag_low_score_question', (id, ))
+                logger.info(f'Flagging {row} for low score')
+                db.commit()
+
+
 if __name__ == '__main__':
     init_logger()
     connect_to_db()
@@ -105,6 +120,5 @@ if __name__ == '__main__':
 
     while True:
         filter_user_submitted_questions()
+        filter_low_score_questions()
         sleep(timer)
-
-
