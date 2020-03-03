@@ -48,6 +48,7 @@ services:
       DB_HOST: mysql
       DB_NAME: db
       DB_MAX_RETRIES: 5
+      FILTER_RERUN_TIMER_HOURS: 24
 
 volumes:
   mysql-volume: {}
