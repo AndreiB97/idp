@@ -189,4 +189,10 @@ BEGIN
     WHERE QuestionID = id;
 END //
 
+CREATE PROCEDURE get_user_submitted_questions()
+BEGIN
+    SELECT *
+    FROM USER_SUBMITTED_QUESTIONS;
+END //
+
 DELIMITER ;
