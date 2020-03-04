@@ -39,19 +39,32 @@ def init_logger():
     logger.setLevel(logging.INFO)
 
 
-def filter_user_submitted_questions():
+def filter_profanity(id, ans1, ans2, cursor):
+    profanity_probabilities = predict_prob(ans1, ans2)
+
+    for probability in profanity_probabilities:
+        if probability > 0.5:
+            cursor.callproc('flag_user_submitted_question', (id, ))
+            db.commit()
+            return True
+
+    return False
+
+
+def scan_user_submitted_questions():
     cursor = db.cursor()
     cursor.callproc('get_user_submitted_questions')
 
     for result in cursor.stored_results():
         for row in result.fetchall():
-            profanity_probabilities = predict_prob([row[1], row[2]])
-            for probability in profanity_probabilities:
-                if probability > 0.5:
-                    logger.info(f'Flagging {row} for profanity')
-                    cursor.callproc('flag_user_submitted_question', (row[0], ))
-                    db.commit()
-                    break
+            id = row[0]
+            ans1 = row[1]
+            ans2 = row[2]
+
+            res = filter_profanity(id, ans1, ans2, cursor)
+
+            if res is True:
+                logger.info(f'Flagging {row} for profanity')
 
 
 def get_rerun_timer():
@@ -97,7 +110,27 @@ def get_rerun_timer():
     return timer
 
 
-def filter_low_score_questions():
+def filter_low_score_question(id, views, score, cursor):
+    if views > 100 and score < views * 0.10:
+        cursor.callproc('flag_low_score_question', (id, ))
+        db.commit()
+        return True
+    return False
+
+
+def filter_priority(id, views, priority, cursor):
+    if views < 100 and priority == 0:
+        cursor.callproc('give_priority', (id, ))
+        db.commit()
+        return True
+    elif views >= 100 and priority == 1:
+        cursor.callproc('remove_priority', (id, ))
+        db.commit()
+        return True
+    return False
+
+
+def scan_question_pool():
     cursor = db.cursor()
     cursor.callproc('get_question_pool')
 
@@ -106,10 +139,17 @@ def filter_low_score_questions():
             id = row[0]
             score = row[5]
             views = row[6]
-            if views > 100 and score < views * 0.10:
-                cursor.callproc('flag_low_score_question', (id, ))
+            priority = row[7]
+
+            res = filter_priority(id, views, priority, cursor)
+
+            if res is True:
+                logger.info(f'Changed priority for {row}')
+
+            res = filter_low_score_question(id, views, score, cursor)
+
+            if res is True:
                 logger.info(f'Flagging {row} for low score')
-                db.commit()
 
 
 if __name__ == '__main__':
@@ -119,6 +159,6 @@ if __name__ == '__main__':
     timer = get_rerun_timer()
 
     while True:
-        filter_user_submitted_questions()
-        filter_low_score_questions()
+        scan_user_submitted_questions()
+        scan_question_pool()
         sleep(timer)
