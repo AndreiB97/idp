@@ -121,7 +121,6 @@ END //
 
 CREATE PROCEDURE get_question()
 BEGIN
-    -- deprecated
     SELECT *
     FROM QUESTION_POOL
     ORDER BY RAND()
@@ -258,6 +257,15 @@ BEGIN
     UPDATE QUESTION_POOL
     SET Priority = false
     WHERE QuestionID = id;
+END //
+
+CREATE PROCEDURE get_priority_question()
+BEGIN
+    SELECT *
+    FROM QUESTION_POOL
+    WHERE Priority = true
+    ORDER BY RAND()
+    LIMIT 1;
 END //
 
 DELIMITER ;
