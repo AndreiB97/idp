@@ -34,6 +34,16 @@ CREATE TABLE USER_SUBMITTED_QUESTIONS (
     Answer2 varchar(128) not null
 );
 
+CREATE TABLE PRIORITY_QUESTION_POOL (
+    QuestionID integer not null primary key auto_increment,
+    Answer1 varchar(128) not null,
+    Answer2 varchar(128) not null,
+    Answer1_count integer default 0,
+    Answer2_count integer default 0,
+    Score integer default 0,
+    Views integer default 0
+);
+
 INSERT INTO QUESTION_POOL(Answer1, Answer2, Views, Answer1_count, Answer2_count, Score)
 VALUES
 (
