@@ -9,7 +9,8 @@ CREATE TABLE QUESTION_POOL (
     Answer1_count integer default 0,
     Answer2_count integer default 0,
     Score integer default 0,
-    Views integer default 0
+    Views integer default 0,
+    Priority boolean default false
 );
 
 CREATE TABLE FLAGGED_OFFENSIVE_QUESTIONS (
@@ -32,16 +33,6 @@ CREATE TABLE USER_SUBMITTED_QUESTIONS (
     QuestionID integer not null primary key auto_increment,
     Answer1 varchar(128) not null,
     Answer2 varchar(128) not null
-);
-
-CREATE TABLE PRIORITY_QUESTION_POOL (
-    QuestionID integer not null primary key auto_increment,
-    Answer1 varchar(128) not null,
-    Answer2 varchar(128) not null,
-    Answer1_count integer default 0,
-    Answer2_count integer default 0,
-    Score integer default 0,
-    Views integer default 0
 );
 
 INSERT INTO QUESTION_POOL(Answer1, Answer2, Views, Answer1_count, Answer2_count, Score)
@@ -253,6 +244,20 @@ BEGIN
 
     INSERT INTO FLAGGED_LOW_SCORE_QUESTIONS(Answer1, Answer2, Answer1_count, Answer2_count, Views, Score)
     VALUES (ans1, ans2, ans1_count, ans2_count, old_views, old_score);
+END //
+
+CREATE PROCEDURE give_priority(IN id integer)
+BEGIN
+    UPDATE QUESTION_POOL
+    SET Priority = true
+    WHERE QuestionID = id;
+END //
+
+CREATE PROCEDURE remove_priority(IN id integer)
+BEGIN
+    UPDATE QUESTION_POOL
+    SET Priority = false
+    WHERE QuestionID = id;
 END //
 
 DELIMITER ;
