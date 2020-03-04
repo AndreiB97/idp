@@ -13,10 +13,11 @@ retry_count = 0
 
 @app.route('/questions', methods=['GET'])
 def get_question():
-    response = {}
     cursor = db.cursor()
 
     chance = random()
+
+    response = None
 
     # 50% chance of gettint priority questions
     if chance > 0.5:
@@ -36,6 +37,23 @@ def get_question():
                 'blue_stats': row[4],
                 'score': row[5]
             }
+
+    if response is None:
+        # in case of no priority questions available
+        cursor.callproc('get_question')
+
+        for result in cursor.stored_results():
+            for row in result.fetchall():
+                app.logger.info(f'Sending question {row}')
+
+                response = {
+                    'id': row[0],
+                    'red': row[1],
+                    'blue': row[2],
+                    'red_stats': row[3],
+                    'blue_stats': row[4],
+                    'score': row[5]
+                }
 
     cursor.callproc('increase_view_count', (response['id'], ))
 
