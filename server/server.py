@@ -19,8 +19,8 @@ def get_question():
 
     response = None
 
-    # 50% chance of gettint priority questions
-    if chance > 0.5:
+    # 25% chance of getting priority questions
+    if chance > 0.25:
         cursor.callproc('get_question')
     else:
         cursor.callproc('get_priority_question')
