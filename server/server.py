@@ -3,6 +3,7 @@ import os
 from logging import INFO
 from time import sleep
 from flask import Flask, jsonify, request
+from random import random
 
 app = Flask(__name__)
 
@@ -15,7 +16,13 @@ def get_question():
     response = {}
     cursor = db.cursor()
 
-    cursor.callproc('get_question')
+    chance = random()
+
+    # 50% chance of gettint priority questions
+    if chance > 0.5:
+        cursor.callproc('get_question')
+    else:
+        cursor.callproc('get_priority_question')
 
     for result in cursor.stored_results():
         for row in result.fetchall():
