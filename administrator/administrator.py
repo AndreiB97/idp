@@ -6,6 +6,7 @@ from time import sleep
 db = None
 retry_count = 0
 logger = None
+EXIT = 'EXIT'
 
 
 def connect_to_db():
@@ -38,6 +39,17 @@ def init_logger():
     logger.setLevel(logging.INFO)
 
 
+def cli():
+    commands = [EXIT]
+    while True:
+        print('Available commands are:')
+        print('\n'.join(commands))
+        line = input()
+        if line.upper() == EXIT:
+            break
+
+
 if __name__ == '__main__':
     init_logger()
     connect_to_db()
+    cli()
