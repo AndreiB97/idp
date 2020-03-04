@@ -130,10 +130,19 @@ END //
 
 CREATE PROCEDURE get_question()
 BEGIN
+    -- deprecated
     SELECT *
     FROM QUESTION_POOL
     ORDER BY RAND()
     LIMIT 1;
+END //
+
+CREATE PROCEDURE batch_get_questions(IN batch_size integer)
+BEGIN
+    SELECT *
+    FROM QUESTION_POOL
+    ORDER BY RAND()
+    LIMIT batch_size;
 END //
 
 CREATE PROCEDURE add_user_submitted_question(IN ans1 varchar(128), IN ans2 varchar(128))
