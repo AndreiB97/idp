@@ -40,7 +40,7 @@ def init_logger():
 
 
 def filter_profanity(id, ans1, ans2, cursor):
-    profanity_probabilities = predict_prob(ans1, ans2)
+    profanity_probabilities = predict_prob([ans1, ans2])
 
     for probability in profanity_probabilities:
         if probability > 0.5:
@@ -155,7 +155,6 @@ def scan_question_pool():
 if __name__ == '__main__':
     init_logger()
     connect_to_db()
-
     timer = get_rerun_timer()
 
     while True:
