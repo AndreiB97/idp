@@ -268,4 +268,10 @@ BEGIN
     LIMIT 1;
 END //
 
+CREATE PROCEDURE get_flagged_offensive_questions()
+BEGIN
+    SELECT *
+    FROM FLAGGED_OFFENSIVE_QUESTIONS;
+END //
+
 DELIMITER ;
