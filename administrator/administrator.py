@@ -2,11 +2,40 @@ import mysql.connector
 import logging
 import os
 from time import sleep
+from PyInquirer import prompt
 
 db = None
 retry_count = 0
 logger = None
-EXIT = 'EXIT'
+
+LANGUAGE = 'Review questions flagged for offensive language'
+SCORE = 'Review questions flagged for low score'
+SUBMITTED = 'Review user submitted questions'
+POOL = 'Review current question pool'
+EXIT = 'Exit'
+
+MAIN_MENU = {
+    'type': 'list',
+    'name': 'action',
+    'message': 'Select an action',
+    'choices': [
+        {
+            'name': LANGUAGE
+        },
+        {
+            'name': SCORE
+        },
+        {
+            'name': SUBMITTED
+        },
+        {
+            'name': POOL
+        },
+        {
+            'name': EXIT
+        }
+    ]
+}
 
 
 def connect_to_db():
@@ -39,14 +68,24 @@ def init_logger():
     logger.setLevel(logging.INFO)
 
 
+def action_dispatcher(action):
+    if action == LANGUAGE:
+        pass
+    elif action == SCORE:
+        pass
+    elif action == SUBMITTED:
+        pass
+    elif action == POOL:
+        pass
+    elif action == EXIT:
+        pass
+    else:
+        logger.warning(f'Unsupported action {action}')
+
+
 def cli():
-    commands = [EXIT]
-    while True:
-        print('Available commands are:')
-        print('\n'.join(commands))
-        line = input()
-        if line.upper() == EXIT:
-            break
+    answer = prompt([MAIN_MENU])
+    action_dispatcher(answer['action'])
 
 
 if __name__ == '__main__':
