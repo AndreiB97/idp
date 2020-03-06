@@ -13,6 +13,9 @@ SCORE = 'Review questions flagged for low score'
 SUBMITTED = 'Review user submitted questions'
 POOL = 'Review current question pool'
 EXIT = 'Exit'
+NEXT = 'Next'
+
+BATCH_SIZE = 5
 
 MAIN_MENU = {
     'type': 'list',
@@ -70,17 +73,55 @@ def init_logger():
 
 def action_dispatcher(action):
     if action == LANGUAGE:
-        pass
+        review_language()
+        cli()
     elif action == SCORE:
-        pass
+        # TODO
+        logger.error('Not implemented')
     elif action == SUBMITTED:
-        pass
+        # TODO
+        logger.error('Not implemented')
     elif action == POOL:
-        pass
+        # TODO
+        logger.error('Not implemented')
     elif action == EXIT:
-        pass
+        return
     else:
         logger.warning(f'Unsupported action {action}')
+
+
+def review_language():
+    cursor = db.cursor()
+    cursor.callproc('get_flagged_offensive_questions')
+
+    for result in cursor.stored_results():
+        process_result(result)
+
+
+def process_result(result):
+    rows = result.fetchmany(size=BATCH_SIZE)
+
+    while rows:
+        choices = [str(row) for row in rows]
+        choices.append('Next')
+        choices.append('Exit')
+
+        choice = prompt([{
+            'type': 'rawlist',
+            'name': 'item',
+            'message': '',
+            'choices': choices
+        }])['item']
+
+        if choice == EXIT:
+            return
+        elif choice == NEXT:
+            rows = result.fetchmany(size=BATCH_SIZE)
+        else:
+            # TODO prompt for selected row
+            print(choice, flush=True)
+
+    print('No rows left')
 
 
 def cli():
