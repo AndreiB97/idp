@@ -88,12 +88,73 @@ def action_dispatcher(action):
     elif action == SUBMITTED:
         review_submitted()
     elif action == POOL:
-        # TODO
-        logger.error('Not implemented')
+        review_pool()
     elif action == EXIT:
         exit(0)
     else:
         logger.warning(f'Unsupported action {action}')
+
+
+def review_pool():
+    cursor = db.cursor()
+    cursor.callproc('get_question_pool')
+
+    for result in cursor.stored_results():
+        process_pool_result(result)
+
+
+def process_pool_result(result):
+    rows = result.fetchmany(size=BATCH_SIZE)
+
+    while rows:
+        choices = [str(row) for row in rows]
+        choices.append('Next')
+        choices.append('Exit')
+
+        choice = prompt([{
+            'type': 'rawlist',
+            'name': 'item',
+            'message': '',
+            'choices': choices
+        }])['item']
+
+        if choice == EXIT:
+            return
+        elif choice == NEXT:
+            rows = result.fetchmany(size=BATCH_SIZE)
+        else:
+            choice_tuple = make_tuple(choice)
+            res = process_pool_item(choice_tuple)
+
+            if res == DELETE:
+                rows.remove(choice_tuple)
+
+    print('No rows left')
+
+
+def process_pool_item(item):
+    action = prompt([{
+        'type': 'list',
+        'name': 'action',
+        'message': str(item),
+        'choices': [
+            DELETE,
+            EXIT
+        ]
+    }])['action']
+
+    cursor = db.cursor()
+
+    if action == DELETE:
+        cursor.callproc('delete_question_from_pool', (item[0],))
+
+        db.commit()
+
+        return DELETE
+    elif action == EXIT:
+        return EXIT
+    else:
+        logger.error(f'Unsupported action {action}')
 
 
 def review_submitted():
