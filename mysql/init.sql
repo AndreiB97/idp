@@ -308,4 +308,17 @@ BEGIN
     WHERE QuestionID = id;
 END //
 
+CREATE PROCEDURE get_flagged_low_score_questions()
+BEGIN
+    SELECT *
+    FROM FLAGGED_LOW_SCORE_QUESTIONS;
+END //
+
+CREATE PROCEDURE delete_flagged_low_score_question(IN id integer)
+BEGIN
+    DELETE FROM FLAGGED_LOW_SCORE_QUESTIONS
+    WHERE QuestionID = id;
+END //
+
+
 DELIMITER ;
