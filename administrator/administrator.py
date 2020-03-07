@@ -9,6 +9,12 @@ db = None
 retry_count = 0
 logger = None
 
+QUESTION_POOL_HEADER = '(ID, Answer 1, Answer 2, Answer 1 count, Answer 2 count, Score, Views, Priority)'
+FLAGGED_OFFENSIVE_QUESTIONS_HEADER = '(ID, Answer 1, Answer 2)'
+FLAGGED_LOW_SCORE_QUESTIONS_HEADER = '(ID, Answer 1, Answer 2, Answer 1 count, Answer 2 count, Score, Views)'
+USER_SUBMITTED_QUESTIONS_HEADER = '(ID, Answer 1, Answer 2)'
+
+
 LANGUAGE = 'Review questions flagged for offensive language'
 SCORE = 'Review questions flagged for low score'
 SUBMITTED = 'Review user submitted questions'
@@ -93,10 +99,64 @@ def action_dispatcher(action):
 
 def review_score():
     cursor = db.cursor()
-    cursor.callproc('')
+    cursor.callproc('get_flagged_low_score_questions')
 
     for result in cursor.stored_results():
-        process_pool_result(result)
+        process_score_result(result)
+
+
+def process_score_result(result):
+    rows = result.fetchmany(size=BATCH_SIZE)
+
+    while rows:
+        choices = [str(row) for row in rows]
+        choices.append('Next')
+        choices.append('Exit')
+
+        choice = prompt([{
+            'type': 'rawlist',
+            'name': 'item',
+            'message': FLAGGED_LOW_SCORE_QUESTIONS_HEADER,
+            'choices': choices
+        }])['item']
+
+        if choice == EXIT:
+            return
+        elif choice == NEXT:
+            rows = result.fetchmany(size=BATCH_SIZE)
+        else:
+            choice_tuple = make_tuple(choice)
+            res = process_score_item(choice_tuple)
+
+            if res == DELETE:
+                rows.remove(choice_tuple)
+
+    print('No rows left')
+
+
+def process_score_item(item):
+    action = prompt([{
+        'type': 'list',
+        'name': 'action',
+        'message': str(item),
+        'choices': [
+            DELETE,
+            EXIT
+        ]
+    }])['action']
+
+    cursor = db.cursor()
+
+    if action == DELETE:
+        cursor.callproc('delete_flagged_low_score_question', (item[0],))
+
+        db.commit()
+
+        return DELETE
+    elif action == EXIT:
+        return EXIT
+    else:
+        logger.error(f'Unsupported action {action}')
 
 
 def review_pool():
@@ -118,7 +178,7 @@ def process_pool_result(result):
         choice = prompt([{
             'type': 'rawlist',
             'name': 'item',
-            'message': '',
+            'message': QUESTION_POOL_HEADER,
             'choices': choices
         }])['item']
 
@@ -188,7 +248,7 @@ def process_user_submitted_result(result):
         choice = prompt([{
             'type': 'rawlist',
             'name': 'item',
-            'message': '',
+            'message': USER_SUBMITTED_QUESTIONS_HEADER,
             'choices': choices
         }])['item']
 
@@ -256,7 +316,7 @@ def process_offensive_language_result(result):
         choice = prompt([{
             'type': 'rawlist',
             'name': 'item',
-            'message': '',
+            'message': FLAGGED_OFFENSIVE_QUESTIONS_HEADER,
             'choices': choices
         }])['item']
 
