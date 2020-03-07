@@ -5,8 +5,6 @@ from time import sleep
 from PyInquirer import prompt
 from ast import literal_eval as make_tuple
 
-# TODO make filter ignore restored items?
-
 db = None
 retry_count = 0
 logger = None
@@ -20,7 +18,6 @@ EXIT = 'Exit'
 NEXT = 'Next'
 DELETE = 'Delete'
 APPROVE = 'Approve'
-RESTORE = 'Restore'
 FLAG = 'Flag as offensive'
 
 BATCH_SIZE = 5
@@ -83,8 +80,7 @@ def action_dispatcher(action):
     if action == LANGUAGE:
         review_language()
     elif action == SCORE:
-        # TODO
-        logger.error('Not implemented')
+        review_score()
     elif action == SUBMITTED:
         review_submitted()
     elif action == POOL:
@@ -93,6 +89,14 @@ def action_dispatcher(action):
         exit(0)
     else:
         logger.warning(f'Unsupported action {action}')
+
+
+def review_score():
+    cursor = db.cursor()
+    cursor.callproc('')
+
+    for result in cursor.stored_results():
+        process_pool_result(result)
 
 
 def review_pool():
@@ -264,7 +268,7 @@ def process_offensive_language_result(result):
             choice_tuple = make_tuple(choice)
             res = process_offensive_language_item(choice_tuple)
 
-            if res == RESTORE or res == DELETE:
+            if res == DELETE:
                 rows.remove(choice_tuple)
 
     print('No rows left')
@@ -277,7 +281,6 @@ def process_offensive_language_item(item):
         'message': str(item),
         'choices': [
             DELETE,
-            RESTORE,
             EXIT
         ]
     }])['action']
@@ -292,14 +295,6 @@ def process_offensive_language_item(item):
         logger.info(f'Deleted {item} for offensive language')
 
         return DELETE
-    elif action == RESTORE:
-        cursor.callproc('restore_flagged_offensive_question', (item[0],))
-
-        db.commit()
-
-        logger.info(f'Restored {item} from offensive language questions')
-
-        return RESTORE
     elif action == EXIT:
         return EXIT
     else:
