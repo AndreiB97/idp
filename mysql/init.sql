@@ -302,4 +302,10 @@ BEGIN
     WHERE QuestionID = id;
 END //
 
+CREATE PROCEDURE delete_question_from_pool(IN id integer)
+BEGIN
+    DELETE FROM QUESTION_POOL
+    WHERE QuestionID = id;
+END //
+
 DELIMITER ;
