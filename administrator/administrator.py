@@ -3,6 +3,7 @@ import logging
 import os
 from time import sleep
 from PyInquirer import prompt
+from ast import literal_eval as make_tuple
 
 db = None
 retry_count = 0
@@ -12,8 +13,11 @@ LANGUAGE = 'Review questions flagged for offensive language'
 SCORE = 'Review questions flagged for low score'
 SUBMITTED = 'Review user submitted questions'
 POOL = 'Review current question pool'
+
 EXIT = 'Exit'
 NEXT = 'Next'
+DELETE = 'Delete'
+RESTORE = 'Restore'
 
 BATCH_SIZE = 5
 
@@ -67,7 +71,7 @@ def connect_to_db():
 def init_logger():
     global logger
 
-    logger = logging.getLogger('Filter')
+    logger = logging.getLogger('Administrator')
     logger.setLevel(logging.INFO)
 
 
@@ -118,10 +122,49 @@ def process_result(result):
         elif choice == NEXT:
             rows = result.fetchmany(size=BATCH_SIZE)
         else:
-            # TODO prompt for selected row
-            print(choice, flush=True)
+            choice_tuple = make_tuple(choice)
+            res = process_offensive_language_item(choice_tuple)
+
+            if res == RESTORE or res == DELETE:
+                rows.remove(choice_tuple)
 
     print('No rows left')
+
+
+def process_offensive_language_item(item):
+    action = prompt([{
+        'type': 'list',
+        'name': 'action',
+        'message': str(item),
+        'choices': [
+            DELETE,
+            RESTORE,
+            EXIT
+        ]
+    }])['action']
+
+    cursor = db.cursor()
+
+    if action == DELETE:
+        cursor.callproc('delete_flagged_offensive_question', (item[0],))
+
+        db.commit()
+
+        logger.info(f'Deleted {item} for offensive language')
+
+        return DELETE
+    elif action == RESTORE:
+        cursor.callproc('restore_flagged_offensive_question', (item[0],))
+
+        db.commit()
+
+        logger.info(f'Restored {item} from offensive language questions')
+
+        return RESTORE
+    elif action == EXIT:
+        return EXIT
+    else:
+        logger.error(f'Unsupported action {action}')
 
 
 def cli():
