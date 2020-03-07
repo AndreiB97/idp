@@ -296,4 +296,10 @@ BEGIN
     VALUES (ans1, ans2);
 END //
 
+CREATE PROCEDURE delete_user_submitted_question(IN id integer)
+BEGIN
+    DELETE FROM USER_SUBMITTED_QUESTIONS
+    WHERE QuestionID = id;
+END //
+
 DELIMITER ;
