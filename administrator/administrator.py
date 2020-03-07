@@ -5,6 +5,8 @@ from time import sleep
 from PyInquirer import prompt
 from ast import literal_eval as make_tuple
 
+# TODO make filter ignore restored items?
+
 db = None
 retry_count = 0
 logger = None
@@ -17,7 +19,9 @@ POOL = 'Review current question pool'
 EXIT = 'Exit'
 NEXT = 'Next'
 DELETE = 'Delete'
+APPROVE = 'Approve'
 RESTORE = 'Restore'
+FLAG = 'Flag as offensive'
 
 BATCH_SIZE = 5
 
@@ -78,20 +82,26 @@ def init_logger():
 def action_dispatcher(action):
     if action == LANGUAGE:
         review_language()
-        cli()
     elif action == SCORE:
         # TODO
         logger.error('Not implemented')
     elif action == SUBMITTED:
-        # TODO
-        logger.error('Not implemented')
+        review_submitted()
     elif action == POOL:
         # TODO
         logger.error('Not implemented')
     elif action == EXIT:
-        return
+        exit(0)
     else:
         logger.warning(f'Unsupported action {action}')
+
+
+def review_submitted():
+    cursor = db.cursor()
+    cursor.callproc('get_user_submitted_questions')
+
+    for result in cursor.stored_results():
+        process_user_submitted_result(result)
 
 
 def review_language():
@@ -99,10 +109,78 @@ def review_language():
     cursor.callproc('get_flagged_offensive_questions')
 
     for result in cursor.stored_results():
-        process_result(result)
+        process_offensive_language_result(result)
 
 
-def process_result(result):
+def process_user_submitted_result(result):
+    rows = result.fetchmany(size=BATCH_SIZE)
+
+    while rows:
+        choices = [str(row) for row in rows]
+        choices.append('Next')
+        choices.append('Exit')
+
+        choice = prompt([{
+            'type': 'rawlist',
+            'name': 'item',
+            'message': '',
+            'choices': choices
+        }])['item']
+
+        if choice == EXIT:
+            return
+        elif choice == NEXT:
+            rows = result.fetchmany(size=BATCH_SIZE)
+        else:
+            choice_tuple = make_tuple(choice)
+            res = process_user_submitted_item(choice_tuple)
+
+            if res == APPROVE or res == DELETE or res == FLAG:
+                rows.remove(choice_tuple)
+
+    print('No rows left')
+
+
+def process_user_submitted_item(item):
+    action = prompt([{
+        'type': 'list',
+        'name': 'action',
+        'message': str(item),
+        'choices': [
+            APPROVE,
+            FLAG,
+            DELETE,
+            EXIT
+        ]
+    }])['action']
+
+    cursor = db.cursor()
+
+    if action == DELETE:
+        cursor.callproc('delete_user_submitted_question', (item[0],))
+
+        db.commit()
+
+        return DELETE
+    elif action == APPROVE:
+        cursor.callproc('approve_question', (item[0],))
+
+        db.commit()
+
+        return APPROVE
+    elif action == FLAG:
+        cursor.callproc('flag_user_submitted_question', (item[0],))
+
+        db.commit()
+
+        return FLAG
+    elif action == EXIT:
+        return EXIT
+    else:
+        logger.error(f'Unsupported action {action}')
+
+
+def process_offensive_language_result(result):
     rows = result.fetchmany(size=BATCH_SIZE)
 
     while rows:
@@ -168,8 +246,9 @@ def process_offensive_language_item(item):
 
 
 def cli():
-    answer = prompt([MAIN_MENU])
-    action_dispatcher(answer['action'])
+    while True:
+        answer = prompt([MAIN_MENU])
+        action_dispatcher(answer['action'])
 
 
 if __name__ == '__main__':
