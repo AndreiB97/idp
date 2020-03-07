@@ -27,6 +27,7 @@ services:
 
   administrator:
     build: ./administrator
+    restart: always
     stdin_open: true
     tty: true
     depends_on:
@@ -40,6 +41,7 @@ services:
 
   filter:
     build: ./filter
+    restart: always
     depends_on:
       - mysql
     environment:
