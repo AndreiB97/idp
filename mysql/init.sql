@@ -274,4 +274,26 @@ BEGIN
     FROM FLAGGED_OFFENSIVE_QUESTIONS;
 END //
 
+CREATE PROCEDURE delete_flagged_offensive_question(IN id integer)
+BEGIN
+    DELETE FROM FLAGGED_OFFENSIVE_QUESTIONS
+    WHERE QuestionID = id;
+END //
+
+CREATE PROCEDURE restore_flagged_offensive_question(IN id integer)
+BEGIN
+    DECLARE ans1 varchar(128);
+    DECLARE ans2 varchar(128);
+
+    SELECT Answer1, Answer2
+    INTO ans1, ans2
+    FROM FLAGGED_OFFENSIVE_QUESTIONS
+    WHERE QuestionID = id;
+
+    CALL delete_flagged_offensive_question(id);
+
+    INSERT INTO USER_SUBMITTED_QUESTIONS(Answer1, Answer2)
+    VALUES (ans1, ans2);
+END //
+
 DELIMITER ;
