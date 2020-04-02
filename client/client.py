@@ -1,5 +1,6 @@
 from tkinter import messagebox
 from tkinter import *
+import os
 import requests
 
 window = None
@@ -45,6 +46,8 @@ QUESTION_DISLIKED = 2
 questions = []
 current_question = 0
 
+SERVER_URL = os.environ.get('SERVER_URL') or 'localhost'
+
 
 def init_ui_widgets():
     global window, top_frame, vote_text, bottom_frame, red_button, blue_button, next_button, \
@@ -52,12 +55,14 @@ def init_ui_widgets():
         answer_frame_top, answer_frame_bottom, send_button, send_frame, check_mark_label, \
         like_button, dislike_button, back_button
 
+    # className requires a space or the first letter of the string is not capitalized
     window = Tk(className=' Would You Rather')
+    window.resizable(False, False)
 
     top_frame = Frame(window)
-    vote_text = Label(top_frame, text='Would you rather...', font=('calibri', 20))
-
     bottom_frame = Frame(window)
+
+    vote_text = Label(top_frame, text='Would you rather...', font=('calibri', 20))
 
     red_button = Button(bottom_frame, text='Left', bg='red', fg='white',
                         command=pick_red, height=5, width=32, font=('calibri', 20), wraplength=400)
@@ -80,27 +85,29 @@ def init_ui_widgets():
     answer_frame_top = Frame(window)
     answer_frame_bottom = Frame(window)
 
-    answer_text_1 = Label(answer_frame_top, text='Answer 1', font=('calibri', 15))
+    answer_text_1 = Label(answer_frame_top, text="Red", font=('calibri', 15))
     answer_entry_1 = Entry(answer_frame_top, font=('calibri', 15))
 
-    answer_text_2 = Label(answer_frame_bottom, text='Answer 2', font=('calibri', 15))
+    answer_text_2 = Label(answer_frame_bottom, text="Blue", font=('calibri', 15))
     answer_entry_2 = Entry(answer_frame_bottom, font=('calibri', 15))
 
     send_frame = Frame(window)
-    send_button = Button(send_frame, text='Send', command=send_question, font=('calibri', 11))
 
+    send_button = Button(send_frame, text='Send', command=send_question, font=('calibri', 11))
     back_button = Button(send_frame, text='Back', command=display_vote_ui, font=('calibri', 11))
 
     check_mark_label = Label(bottom_frame, text='✓', fg='white', font=('calibri', 15))
 
 
 def display_vote_ui():
+    # hide submit ui
     answer_frame_top.pack_forget()
     answer_frame_bottom.pack_forget()
     send_frame.pack_forget()
 
     top_frame.pack()
     vote_text.pack()
+
     bottom_frame.pack(side=BOTTOM)
 
     prev_button.grid(row=0, column=0)
@@ -113,6 +120,7 @@ def display_vote_ui():
 
 
 def display_submit_ui():
+    # hide vote ui
     bottom_frame.pack_forget()
 
     answer_frame_top.pack()
@@ -140,7 +148,7 @@ def pick_red():
             'answer': 'red'
         }
 
-        requests.put('http://127.0.0.1/answers', params=para)
+        requests.put(f'http://{SERVER_URL}/answers', params=para)
         display_result()
 
 
@@ -154,7 +162,7 @@ def pick_blue():
             'answer': 'blue'
         }
 
-        requests.put('http://127.0.0.1/answers', params=para)
+        requests.put(f'http://{SERVER_URL}/answers', params=para)
         display_result()
 
 
@@ -163,6 +171,7 @@ def get_next():
 
     current_question -=- 1
 
+    # reset buttons
     red_button.configure(relief=RAISED)
     blue_button.configure(relief=RAISED)
 
@@ -200,11 +209,11 @@ def get_prev():
 
     red_button.configure(relief=RAISED)
     blue_button.configure(relief=RAISED)
-    check_mark_label.grid_forget()
 
     if current_question > 0:
         current_question -= 1
 
+        # disable button if on first question
         if current_question == 0:
             prev_button.config(state=DISABLED)
 
@@ -215,29 +224,34 @@ def get_prev():
 
 
 def send_question():
-    para = {
-        'answer1': answer_entry_1.get(),
-        'answer2': answer_entry_2.get()
-    }
+    # strip whitespaces from answers
+    ans1_text = answer_entry_1.get().strip()
+    ans2_text = answer_entry_2.get().strip()
 
-    if len(answer_entry_1.get()) == 0 or len(answer_entry_2.get()) == 0:
+    if len(ans1_text) == 0 or len(ans2_text) == 0:
         messagebox.showinfo('Error', 'Answer cannot be blank')
-    elif len(answer_entry_1.get()) > 128 or len(answer_entry_2.get()) > 128:
+    elif len(ans1_text) > 128 or len(ans2_text) > 128:
         messagebox.showinfo('Error', 'Answer length must be 128 or less characters')
     else:
-        requests.put('http://127.0.0.1/questions', params=para)
+        para = {
+            'answer1': ans1_text,
+            'answer2': ans2_text
+        }
+
+        requests.put(f'http://{SERVER_URL}/questions', params=para)
+
+        answer_entry_1.delete(0, END)
+        answer_entry_2.delete(0, END)
 
         display_vote_ui()
 
-    answer_entry_1.delete(0, END)
-    answer_entry_2.delete(0, END)
-
 
 def get_question():
-    req = requests.get(url='http://127.0.0.1/questions')
+    req = requests.get(url=f'http://{SERVER_URL}/questions')
     question = req.json()
     question['state'] = NOT_VOTED
     question['voted'] = NOT_VOTED
+
     return question
 
 
@@ -294,7 +308,7 @@ def like_question():
             'score': 1
         }
 
-        requests.put('http://127.0.0.1/score', params=para)
+        requests.put(f'http://{SERVER_URL}/score', params=para)
 
 
 def dislike_question():
@@ -309,7 +323,7 @@ def dislike_question():
             'score': -1
         }
 
-        requests.put('http://127.0.0.1/score', params=para)
+        requests.put(f'http://{SERVER_URL}/score', params=para)
 
 
 if __name__ == '__main__':
