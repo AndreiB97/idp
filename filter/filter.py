@@ -14,7 +14,7 @@ logger = None
 def init_logger():
     global logger
 
-    logger = logging.Logger(name='Filter')
+    logger = logging.getLogger(name='Filter')
     logger.setLevel(logging.INFO)
 
 
