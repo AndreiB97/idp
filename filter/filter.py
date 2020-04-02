@@ -3,12 +3,12 @@ import logging
 import schedule
 from time import sleep
 from profanity_check import predict_prob
-from db_connection.connect_helper import set_logger, connect_to_db
-
-# TODO catch mysql no procedure exceptions and retry
+from db_connection.connect_helper import set_logger, connect_to_db, SLEEP_AMOUNT
+import mysql.connector.errors as errors
 
 db = None
 logger = None
+retry_count = 0
 
 
 def init_logger():
@@ -19,11 +19,31 @@ def init_logger():
 
 
 def filter_profanity(question_id, ans1, ans2, cursor):
+    global retry_count
+
     profanity_probabilities = predict_prob([ans1, ans2])
 
     for probability in profanity_probabilities:
         if probability > 0.5:
-            cursor.callproc('flag_user_submitted_question', (question_id,))
+            while True:
+                try:
+                    cursor.callproc('flag_user_submitted_question', (question_id,))
+
+                    break
+                except errors.ProgrammingError:
+                    if retry_count < 5:
+                        logger.warn(f'Unable to call procedure. Sleeping for {SLEEP_AMOUNT} and retrying.')
+
+                        sleep(SLEEP_AMOUNT)
+
+                        retry_count -= - 1
+                        logger.warn(f'Retrying attempt #{retry_count}')
+                        continue
+                    else:
+                        logger.error('Maximum number of retries reached.')
+                        raise
+
+            retry_count = 0
             db.commit()
 
             return True
@@ -32,8 +52,29 @@ def filter_profanity(question_id, ans1, ans2, cursor):
 
 
 def scan_user_submitted_questions():
+    global retry_count
+
     cursor = db.cursor()
-    cursor.callproc('get_user_submitted_questions')
+
+    while True:
+        try:
+            cursor.callproc('get_user_submitted_questions')
+
+            break
+        except errors.ProgrammingError:
+            if retry_count < 5:
+                logger.warn(f'Unable to call procedure. Sleeping for {SLEEP_AMOUNT} and retrying.')
+
+                sleep(SLEEP_AMOUNT)
+
+                retry_count -= - 1
+                logger.warn(f'Retrying attempt #{retry_count}')
+                continue
+            else:
+                logger.error('Maximum number of retries reached.')
+                raise
+
+    retry_count = 0
 
     for result in cursor.stored_results():
         for row in result.fetchall():
@@ -50,30 +91,30 @@ def scan_user_submitted_questions():
 def get_rerun_timer():
     timer_minutes_total = 0
 
-    timer_minutes = os.environ.get('FILTER_RERUN_TIMER_MINUTES')
-    timer_hours = os.environ.get('FILTER_RERUN_TIMER_HOURS')
-    timer_days = os.environ.get('FILTER_RERUN_TIMER_DAYS')
+    rerun_timer_minutes = os.environ.get('FILTER_RERUN_TIMER_MINUTES')
+    rerun_timer_hours = os.environ.get('FILTER_RERUN_TIMER_HOURS')
+    rerun_timer_days = os.environ.get('FILTER_RERUN_TIMER_DAYS')
 
     try:
-        if timer_minutes is not None:
-            timer_minutes_total += int(timer_minutes)
+        if rerun_timer_minutes is not None:
+            timer_minutes_total += int(rerun_timer_minutes)
     except TypeError:
         logger.warning('Type of FILTER_RERUN_TIMER_MINUTES is not int')
-        logger.debug(f'FILTER_RERUN_TIMER_MINUTES={timer_minutes}')
+        logger.debug(f'FILTER_RERUN_TIMER_MINUTES={rerun_timer_minutes}')
 
     try:
-        if timer_hours is not None:
-            timer_minutes_total += int(timer_hours) * 60
+        if rerun_timer_hours is not None:
+            timer_minutes_total += int(rerun_timer_hours) * 60
     except TypeError:
         logger.warning('Type of FILTER_RERUN_TIMER_HOURS is not int')
-        logger.debug(f'FILTER_RERUN_TIMER_HOURS={timer_hours}')
+        logger.debug(f'FILTER_RERUN_TIMER_HOURS={rerun_timer_hours}')
 
     try:
-        if timer_days is not None:
-            timer_minutes_total += int(timer_days) * 24 * 60
+        if rerun_timer_days is not None:
+            timer_minutes_total += int(rerun_timer_days) * 24 * 60
     except TypeError:
         logger.warning('Type of FILTER_RERUN_TIMER_DAYS is not int')
-        logger.debug(f'FILTER_RERUN_TIMER_DAYS={timer_days}')
+        logger.debug(f'FILTER_RERUN_TIMER_DAYS={rerun_timer_days}')
 
     if timer_minutes_total == 0:
         timer_minutes_total = 24 * 60
@@ -83,8 +124,28 @@ def get_rerun_timer():
 
 
 def filter_low_score_question(question_id, views, score, cursor):
+    global retry_count
+
     if views > 100 and score < views * 0.10:
-        cursor.callproc('flag_low_score_question', (question_id,))
+        while True:
+            try:
+                cursor.callproc('flag_low_score_question', (question_id,))
+
+                break
+            except errors.ProgrammingError:
+                if retry_count < 5:
+                    logger.warn(f'Unable to call procedure. Sleeping for {SLEEP_AMOUNT} and retrying.')
+
+                    sleep(SLEEP_AMOUNT)
+
+                    retry_count -= - 1
+                    logger.warn(f'Retrying attempt #{retry_count}')
+                    continue
+                else:
+                    logger.error('Maximum number of retries reached.')
+                    raise
+
+        retry_count = 0
         db.commit()
 
         return True
@@ -93,13 +154,51 @@ def filter_low_score_question(question_id, views, score, cursor):
 
 
 def filter_priority(question_id, views, priority, cursor):
+    global retry_count
+
     if views < 100 and priority == 0:
-        cursor.callproc('give_priority', (question_id,))
+        while True:
+            try:
+                cursor.callproc('give_priority', (question_id,))
+
+                break
+            except errors.ProgrammingError:
+                if retry_count < 5:
+                    logger.warn(f'Unable to call procedure. Sleeping for {SLEEP_AMOUNT} and retrying.')
+
+                    sleep(SLEEP_AMOUNT)
+
+                    retry_count -= - 1
+                    logger.warn(f'Retrying attempt #{retry_count}')
+                    continue
+                else:
+                    logger.error('Maximum number of retries reached.')
+                    raise
+
+        retry_count = 0
         db.commit()
 
         return True
     elif views >= 100 and priority == 1:
-        cursor.callproc('remove_priority', (question_id,))
+        while True:
+            try:
+                cursor.callproc('remove_priority', (question_id,))
+
+                break
+            except errors.ProgrammingError:
+                if retry_count < 5:
+                    logger.warn(f'Unable to call procedure. Sleeping for {SLEEP_AMOUNT} and retrying.')
+
+                    sleep(SLEEP_AMOUNT)
+
+                    retry_count -= - 1
+                    logger.warn(f'Retrying attempt #{retry_count}')
+                    continue
+                else:
+                    logger.error('Maximum number of retries reached.')
+                    raise
+
+        retry_count = 0
         db.commit()
 
         return True
@@ -108,8 +207,29 @@ def filter_priority(question_id, views, priority, cursor):
 
 
 def scan_question_pool():
+    global retry_count
+
     cursor = db.cursor()
-    cursor.callproc('get_question_pool')
+
+    while True:
+        try:
+            cursor.callproc('get_question_pool')
+
+            break
+        except errors.ProgrammingError:
+            if retry_count < 5:
+                logger.warn(f'Unable to call procedure. Sleeping for {SLEEP_AMOUNT} and retrying.')
+
+                sleep(SLEEP_AMOUNT)
+
+                retry_count -= - 1
+                logger.warn(f'Retrying attempt #{retry_count}')
+                continue
+            else:
+                logger.error('Maximum number of retries reached.')
+                raise
+
+    retry_count = 0
 
     for result in cursor.stored_results():
         for row in result.fetchall():
