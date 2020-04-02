@@ -1,20 +1,17 @@
-import mysql.connector
-import os
 from logging import INFO
-from time import sleep
 from flask import Flask, jsonify, request
 from random import random
+from db_connection.connect_helper import connect_to_db, set_logger
 
 app = Flask(__name__)
-
 db = None
-retry_count = 0
+
+# TODO catch procedure exception
 
 
 @app.route('/questions', methods=['GET'])
 def get_question():
     cursor = db.cursor()
-
     chance = random()
 
     response = None
@@ -38,8 +35,8 @@ def get_question():
                 'score': row[5]
             }
 
+    # in case of no priority questions available
     if response is None:
-        # in case of no priority questions available
         cursor.callproc('get_question')
 
         for result in cursor.stored_results():
@@ -70,7 +67,8 @@ def submit_question():
     cursor.callproc('add_user_submitted_question', [args['answer1'], args['answer2']])
 
     db.commit()
-    app.logger.info(f'Added user submitted question {args["answer1"]}, {args["answer2"]}')
+
+    app.logger.info(f'Added user submitted question {args}')
 
     return jsonify({}), 200
 
@@ -96,42 +94,25 @@ def submit_answer():
 @app.route('/score', methods=['PUT'])
 def score():
     args = request.args
+    question_score = 1
+
+    # make sure score is always 1 or -1
+    if args['score'] < 0:
+        question_score = -1
 
     app.logger.info(f'Received score {args}')
 
     cursor = db.cursor()
 
-    cursor.callproc('score_question', (args['id'], args['score']))
+    cursor.callproc('score_question', (args['id'], question_score))
 
     db.commit()
 
     return jsonify({}), 200
 
 
-def connect_to_db():
-    global db, retry_count
-
-    try:
-        db = mysql.connector.connect(
-            host=os.environ['DB_HOST'],
-            user=os.environ['DB_USER'],
-            passwd=os.environ['DB_PASS'],
-            database=os.environ['DB_NAME']
-        )
-
-        app.logger.info('Connected to DB')
-    except mysql.connector.errors.InterfaceError:
-        if retry_count < 5:
-            retry_count -=- 1
-            app.logger.warning(f'Unable to connect to DB. Retry #{retry_count}.')
-            sleep(1)
-            connect_to_db()
-        else:
-            app.logger.error('Maximum number of retries reached.')
-            raise
-
-
 if __name__ == '__main__':
     app.logger.setLevel(INFO)
-    connect_to_db()
+    set_logger(app.logger)
+    db = connect_to_db()
     app.run(port=80, host='0.0.0.0')
