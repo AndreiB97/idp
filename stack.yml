@@ -23,6 +23,8 @@ services:
       DB_HOST: mysql
       DB_NAME: db
       DB_MAX_RETRIES: 5
+    volumes:
+      - ./db_connection:/app/db_connection
 
   administrator:
     build: ./administrator
@@ -37,6 +39,8 @@ services:
       DB_HOST: mysql
       DB_NAME: db
       DB_MAX_RETRIES: 5
+    volumes:
+      - ./db_connection:/app/db_connection
 
   filter:
     build: ./filter
@@ -49,7 +53,6 @@ services:
       DB_HOST: mysql
       DB_NAME: db
       DB_MAX_RETRIES: 5
-      FILTER_RERUN_TIMER_HOURS: 24
-
-volumes:
-  mysql-volume: {}
+      FILTER_RERUN_TIMER_MINUTES: 1
+    volumes:
+      - ./db_connection:/app/db_connection
