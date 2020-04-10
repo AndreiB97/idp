@@ -1,6 +1,20 @@
 version: '3.3'
 
 services:
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus/:/etc/prometheus/
+      - prometheus_volume:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - 9090:9090
+
+
   mysql:
     image: mysql:latest
     restart: always
@@ -56,3 +70,6 @@ services:
       FILTER_RERUN_TIMER_MINUTES: 1
     volumes:
       - ./db_connection:/app/db_connection
+
+volumes:
+  prometheus_volume: {}
