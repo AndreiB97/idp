@@ -46,7 +46,7 @@ QUESTION_DISLIKED = 2
 questions = []
 current_question = 0
 
-SERVER_URL = os.environ.get('SERVER_URL') or 'localhost'
+SERVER_URL = os.environ.get('SERVER_URL') or '3.127.222.231'
 
 
 def init_ui_widgets():
