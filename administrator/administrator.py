@@ -4,6 +4,7 @@ from PyInquirer import prompt
 from time import sleep
 from ast import literal_eval as make_tuple
 from db_connection.connect_helper import connect_to_db, set_logger, SLEEP_AMOUNT
+from contextlib import closing
 
 db = None
 retry_count = 0
@@ -76,30 +77,29 @@ def action_dispatcher(action):
 def review_score():
     global retry_count
 
-    cursor = db.cursor()
+    with closing(db.cursor()) as cursor:
+        while True:
+            try:
+                cursor.callproc('get_flagged_low_score_questions')
 
-    while True:
-        try:
-            cursor.callproc('get_flagged_low_score_questions')
+                break
+            except errors.ProgrammingError:
+                if retry_count < 5:
+                    logger.warn(f'Unable to call procedure. Sleeping for {SLEEP_AMOUNT} and retrying.')
 
-            break
-        except errors.ProgrammingError:
-            if retry_count < 5:
-                logger.warn(f'Unable to call procedure. Sleeping for {SLEEP_AMOUNT} and retrying.')
+                    sleep(SLEEP_AMOUNT)
 
-                sleep(SLEEP_AMOUNT)
+                    retry_count -= - 1
+                    logger.warn(f'Retrying attempt #{retry_count}')
+                    continue
+                else:
+                    logger.error('Maximum number of retries reached.')
+                    raise
 
-                retry_count -= - 1
-                logger.warn(f'Retrying attempt #{retry_count}')
-                continue
-            else:
-                logger.error('Maximum number of retries reached.')
-                raise
+        retry_count = 0
 
-    retry_count = 0
-
-    for result in cursor.stored_results():
-        process_score_result(result)
+        for result in cursor.stored_results():
+            process_score_result(result)
 
 
 def process_score_result(result):
@@ -144,12 +144,43 @@ def process_score_item(item):
         ]
     }])['action']
 
-    cursor = db.cursor()
+    with closing(db.cursor()) as cursor:
+        if action == DELETE:
+            while True:
+                try:
+                    cursor.callproc('delete_flagged_low_score_question', (item[0],))
 
-    if action == DELETE:
+                    break
+                except errors.ProgrammingError:
+                    if retry_count < 5:
+                        logger.warn(f'Unable to call procedure. Sleeping for {SLEEP_AMOUNT} and retrying.')
+
+                        sleep(SLEEP_AMOUNT)
+
+                        retry_count -= - 1
+                        logger.warn(f'Retrying attempt #{retry_count}')
+                        continue
+                    else:
+                        logger.error('Maximum number of retries reached.')
+                        raise
+
+            retry_count = 0
+            db.commit()
+
+            return DELETE
+        elif action == EXIT:
+            return EXIT
+        else:
+            logger.error(f'Unsupported action {action}')
+
+
+def review_pool():
+    global retry_count
+
+    with closing(db.cursor()) as cursor:
         while True:
             try:
-                cursor.callproc('delete_flagged_low_score_question', (item[0],))
+                cursor.callproc('get_question_pool')
 
                 break
             except errors.ProgrammingError:
@@ -166,42 +197,9 @@ def process_score_item(item):
                     raise
 
         retry_count = 0
-        db.commit()
 
-        return DELETE
-    elif action == EXIT:
-        return EXIT
-    else:
-        logger.error(f'Unsupported action {action}')
-
-
-def review_pool():
-    global retry_count
-
-    cursor = db.cursor()
-
-    while True:
-        try:
-            cursor.callproc('get_question_pool')
-
-            break
-        except errors.ProgrammingError:
-            if retry_count < 5:
-                logger.warn(f'Unable to call procedure. Sleeping for {SLEEP_AMOUNT} and retrying.')
-
-                sleep(SLEEP_AMOUNT)
-
-                retry_count -= - 1
-                logger.warn(f'Retrying attempt #{retry_count}')
-                continue
-            else:
-                logger.error('Maximum number of retries reached.')
-                raise
-
-    retry_count = 0
-
-    for result in cursor.stored_results():
-        process_pool_result(result)
+        for result in cursor.stored_results():
+            process_pool_result(result)
 
 
 def process_pool_result(result):
@@ -246,12 +244,44 @@ def process_pool_item(item):
         ]
     }])['action']
 
-    cursor = db.cursor()
+    with closing(db.cursor()) as cursor:
+        if action == DELETE:
+            while True:
+                try:
+                    cursor.callproc('delete_question_from_pool', (item[0],))
 
-    if action == DELETE:
+                    break
+                except errors.ProgrammingError:
+                    if retry_count < 5:
+                        logger.warn(f'Unable to call procedure. Sleeping for {SLEEP_AMOUNT} and retrying.')
+
+                        sleep(SLEEP_AMOUNT)
+
+                        retry_count -= - 1
+                        logger.warn(f'Retrying attempt #{retry_count}')
+                        continue
+                    else:
+                        logger.error('Maximum number of retries reached.')
+                        raise
+
+            retry_count = 0
+
+            db.commit()
+
+            return DELETE
+        elif action == EXIT:
+            return EXIT
+        else:
+            logger.error(f'Unsupported action {action}')
+
+
+def review_submitted():
+    global retry_count
+
+    with closing(db.cursor()) as cursor:
         while True:
             try:
-                cursor.callproc('delete_question_from_pool', (item[0],))
+                cursor.callproc('get_user_submitted_questions')
 
                 break
             except errors.ProgrammingError:
@@ -269,71 +299,36 @@ def process_pool_item(item):
 
         retry_count = 0
 
-        db.commit()
-
-        return DELETE
-    elif action == EXIT:
-        return EXIT
-    else:
-        logger.error(f'Unsupported action {action}')
-
-
-def review_submitted():
-    global retry_count
-
-    cursor = db.cursor()
-
-    while True:
-        try:
-            cursor.callproc('get_user_submitted_questions')
-
-            break
-        except errors.ProgrammingError:
-            if retry_count < 5:
-                logger.warn(f'Unable to call procedure. Sleeping for {SLEEP_AMOUNT} and retrying.')
-
-                sleep(SLEEP_AMOUNT)
-
-                retry_count -= - 1
-                logger.warn(f'Retrying attempt #{retry_count}')
-                continue
-            else:
-                logger.error('Maximum number of retries reached.')
-                raise
-
-    retry_count = 0
-
-    for result in cursor.stored_results():
-        process_user_submitted_result(result)
+        for result in cursor.stored_results():
+            process_user_submitted_result(result)
 
 
 def review_language():
     global retry_count
 
-    cursor = db.cursor()
+    with closing(db.cursor()) as cursor:
+        while True:
+            try:
+                cursor.callproc('get_flagged_offensive_questions')
 
-    while True:
-        try:
-            cursor.callproc('get_flagged_offensive_questions')
+                break
+            except errors.ProgrammingError:
+                if retry_count < 5:
+                    logger.warn(f'Unable to call procedure. Sleeping for {SLEEP_AMOUNT} and retrying.')
 
-            break
-        except errors.ProgrammingError:
-            if retry_count < 5:
-                logger.warn(f'Unable to call procedure. Sleeping for {SLEEP_AMOUNT} and retrying.')
+                    sleep(SLEEP_AMOUNT)
 
-                sleep(SLEEP_AMOUNT)
+                    retry_count -= - 1
+                    logger.warn(f'Retrying attempt #{retry_count}')
+                    continue
+                else:
+                    logger.error('Maximum number of retries reached.')
+                    raise
 
-                retry_count -= - 1
-                logger.warn(f'Retrying attempt #{retry_count}')
-                continue
-            else:
-                logger.error('Maximum number of retries reached.')
-                raise
+        retry_count = 0
 
-    retry_count = 0
-
-    for result in cursor.stored_results():
-        process_offensive_language_result(result)
+        for result in cursor.stored_results():
+            process_offensive_language_result(result)
 
 
 def process_user_submitted_result(result):
@@ -380,47 +375,47 @@ def process_user_submitted_item(item):
         ]
     }])['action']
 
-    cursor = db.cursor()
     ret = None
 
-    while True:
-        try:
-            if action == DELETE:
-                cursor.callproc('delete_user_submitted_question', (item[0],))
+    with closing(db.cursor()) as cursor:
+        while True:
+            try:
+                if action == DELETE:
+                    cursor.callproc('delete_user_submitted_question', (item[0],))
 
-                db.commit()
+                    db.commit()
 
-                ret = DELETE
-            elif action == APPROVE:
-                cursor.callproc('approve_question', (item[0],))
+                    ret = DELETE
+                elif action == APPROVE:
+                    cursor.callproc('approve_question', (item[0],))
 
-                db.commit()
+                    db.commit()
 
-                ret = APPROVE
-            elif action == FLAG:
-                cursor.callproc('flag_user_submitted_question', (item[0],))
+                    ret = APPROVE
+                elif action == FLAG:
+                    cursor.callproc('flag_user_submitted_question', (item[0],))
 
-                db.commit()
+                    db.commit()
 
-                ret = FLAG
-            elif action == EXIT:
-                ret = EXIT
-            else:
-                logger.error(f'Unsupported action {action}')
+                    ret = FLAG
+                elif action == EXIT:
+                    ret = EXIT
+                else:
+                    logger.error(f'Unsupported action {action}')
 
-            break
-        except errors.ProgrammingError:
-            if retry_count < 5:
-                logger.warn(f'Unable to call procedure. Sleeping for {SLEEP_AMOUNT} and retrying.')
+                break
+            except errors.ProgrammingError:
+                if retry_count < 5:
+                    logger.warn(f'Unable to call procedure. Sleeping for {SLEEP_AMOUNT} and retrying.')
 
-                sleep(SLEEP_AMOUNT)
+                    sleep(SLEEP_AMOUNT)
 
-                retry_count -= - 1
-                logger.warn(f'Retrying attempt #{retry_count}')
-                continue
-            else:
-                logger.error('Maximum number of retries reached.')
-                raise
+                    retry_count -= - 1
+                    logger.warn(f'Retrying attempt #{retry_count}')
+                    continue
+                else:
+                    logger.error('Maximum number of retries reached.')
+                    raise
 
     retry_count = 0
 
@@ -469,37 +464,36 @@ def process_offensive_language_item(item):
         ]
     }])['action']
 
-    cursor = db.cursor()
+    with closing(db.cursor()) as cursor:
+        if action == DELETE:
+            while True:
+                try:
+                    cursor.callproc('delete_flagged_offensive_question', (item[0],))
 
-    if action == DELETE:
-        while True:
-            try:
-                cursor.callproc('delete_flagged_offensive_question', (item[0],))
+                    break
+                except errors.ProgrammingError:
+                    if retry_count < 5:
+                        logger.warn(f'Unable to call procedure. Sleeping for {SLEEP_AMOUNT} and retrying.')
 
-                break
-            except errors.ProgrammingError:
-                if retry_count < 5:
-                    logger.warn(f'Unable to call procedure. Sleeping for {SLEEP_AMOUNT} and retrying.')
+                        sleep(SLEEP_AMOUNT)
 
-                    sleep(SLEEP_AMOUNT)
+                        retry_count -= - 1
+                        logger.warn(f'Retrying attempt #{retry_count}')
+                        continue
+                    else:
+                        logger.error('Maximum number of retries reached.')
+                        raise
 
-                    retry_count -= - 1
-                    logger.warn(f'Retrying attempt #{retry_count}')
-                    continue
-                else:
-                    logger.error('Maximum number of retries reached.')
-                    raise
+            retry_count = 0
+            db.commit()
 
-        retry_count = 0
-        db.commit()
+            logger.info(f'Deleted {item} for offensive language')
 
-        logger.info(f'Deleted {item} for offensive language')
-
-        return DELETE
-    elif action == EXIT:
-        return EXIT
-    else:
-        logger.error(f'Unsupported action {action}')
+            return DELETE
+        elif action == EXIT:
+            return EXIT
+        else:
+            logger.error(f'Unsupported action {action}')
 
 
 def cli():

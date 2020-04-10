@@ -3,6 +3,7 @@ from flask import Flask, jsonify, request
 from random import random
 from db_connection.connect_helper import connect_to_db, set_logger, SLEEP_AMOUNT
 from time import sleep
+from contextlib import closing
 import mysql.connector.errors as errors
 
 app = Flask(__name__)
@@ -14,34 +15,18 @@ retry_count = 0
 def get_question():
     global retry_count
 
-    cursor = db.cursor()
+    # random number between 0 and 1
     chance = random()
     response = None
 
-    while True:
-        # 25% chance of getting priority questions
-        try:
-            if chance > 0.25:
-                cursor.callproc('get_question')
-            else:
-                cursor.callproc('get_priority_question')
-
-            for result in cursor.stored_results():
-                for row in result.fetchall():
-                    app.logger.info(f'Sending question {row}')
-
-                    response = {
-                        'id': row[0],
-                        'red': row[1],
-                        'blue': row[2],
-                        'red_stats': row[3],
-                        'blue_stats': row[4],
-                        'score': row[5]
-                    }
-
-            # in case of no priority questions available
-            if response is None:
-                cursor.callproc('get_question')
+    with closing(db.cursor()) as cursor:
+        while True:
+            # 25% chance of getting priority questions
+            try:
+                if chance > 0.25:
+                    cursor.callproc('get_question')
+                else:
+                    cursor.callproc('get_priority_question')
 
                 for result in cursor.stored_results():
                     for row in result.fetchall():
@@ -56,21 +41,39 @@ def get_question():
                             'score': row[5]
                         }
 
-            cursor.callproc('increase_view_count', (response['id'], ))
+                # in case of no priority questions available
+                if response is None:
+                    cursor.callproc('get_question')
 
-            break
-        except errors.ProgrammingError:
-            if retry_count < 5:
-                app.logger.warn(f'Unable to call procedure. Sleeping for {SLEEP_AMOUNT} and retrying.')
+                    for result in cursor.stored_results():
+                        for row in result.fetchall():
+                            app.logger.info(f'Sending question {row}')
 
-                sleep(SLEEP_AMOUNT)
+                            response = {
+                                'id': row[0],
+                                'red': row[1],
+                                'blue': row[2],
+                                'red_stats': row[3],
+                                'blue_stats': row[4],
+                                'score': row[5]
+                            }
 
-                retry_count -=- 1
-                app.logger.warn(f'Retrying attempt #{retry_count}')
-                continue
-            else:
-                app.logger.error('Maximum number of retries reached.')
-                raise
+                cursor.callproc('increase_view_count', (response['id'], ))
+
+                break
+            except errors.ProgrammingError:
+                if retry_count < 5:
+                    app.logger.warn(f'Unable to call procedure. Sleeping for {SLEEP_AMOUNT} and retrying.')
+
+                    sleep(SLEEP_AMOUNT)
+
+                    retry_count -=- 1
+                    app.logger.warn(f'Retrying attempt #{retry_count}')
+                    continue
+                else:
+                    app.logger.error('Maximum number of retries reached.')
+
+                    raise
 
     retry_count = 0
     db.commit()
@@ -82,25 +85,27 @@ def get_question():
 def submit_question():
     global retry_count
     args = request.args
-    cursor = db.cursor()
 
-    while True:
-        try:
-            cursor.callproc('add_user_submitted_question', [args['answer1'], args['answer2']])
+    with closing(db.cursor()) as cursor:
+        while True:
+            try:
+                cursor.callproc('add_user_submitted_question', [args['answer1'], args['answer2']])
 
-            break
-        except errors.ProgrammingError:
-            if retry_count < 5:
-                app.logger.warn(f'Unable to call procedure. Sleeping for {SLEEP_AMOUNT} seconds and retrying.')
+                break
+            except errors.ProgrammingError:
+                if retry_count < 5:
+                    app.logger.warn(f'Unable to call procedure. Sleeping for {SLEEP_AMOUNT} seconds and retrying.')
 
-                sleep(SLEEP_AMOUNT)
+                    sleep(SLEEP_AMOUNT)
 
-                retry_count -= - 1
-                app.logger.warn(f'Retrying attempt #{retry_count}')
-                continue
-            else:
-                app.logger.error('Maximum number of retries reached.')
-                raise
+                    retry_count -= - 1
+                    app.logger.warn(f'Retrying attempt #{retry_count}')
+
+                    continue
+                else:
+                    app.logger.error('Maximum number of retries reached.')
+
+                    raise
 
     retry_count = 0
     db.commit()
@@ -114,29 +119,31 @@ def submit_answer():
     global retry_count
 
     args = request.args
-
     app.logger.info(f'Received answer {args}')
 
-    cursor = db.cursor()
+    with closing(db.cursor()) as cursor:
+        while True:
+            try:
+                if args['answer'] == 'red':
+                    cursor.callproc('increase_answer_count', (args['id'], 1))
+                elif args['answer'] == 'blue':
+                    cursor.callproc('increase_answer_count', (args['id'], 2))
 
-    while True:
-        try:
-            if args['answer'] == 'red':
-                cursor.callproc('increase_answer_count', (args['id'], 1))
-            elif args['answer'] == 'blue':
-                cursor.callproc('increase_answer_count', (args['id'], 2))
-        except errors.ProgrammingError:
-            if retry_count < 5:
-                app.logger.warn(f'Unable to call procedure. Sleeping for {SLEEP_AMOUNT} seconds and retrying.')
+                break
+            except errors.ProgrammingError:
+                if retry_count < 5:
+                    app.logger.warn(f'Unable to call procedure. Sleeping for {SLEEP_AMOUNT} seconds and retrying.')
 
-                sleep(SLEEP_AMOUNT)
+                    sleep(SLEEP_AMOUNT)
 
-                retry_count -= - 1
-                app.logger.warn(f'Retrying attempt #{retry_count}')
-                continue
-            else:
-                app.logger.error('Maximum number of retries reached.')
-                raise
+                    retry_count -= - 1
+                    app.logger.warn(f'Retrying attempt #{retry_count}')
+
+                    continue
+                else:
+                    app.logger.error('Maximum number of retries reached.')
+
+                    raise
 
     db.commit()
     retry_count = 0
@@ -152,29 +159,36 @@ def score():
     question_score = 1
 
     # make sure score is always 1 or -1
-    if args['score'] < 0:
-        question_score = -1
+    try:
+        if int(args['score']) < 0:
+            question_score = -1
+    except ValueError:
+        app.logger.error(f'Received invalid score {args["score"]}')
+
+        return jsonify({}), 400
 
     app.logger.info(f'Received score {args}')
-    cursor = db.cursor()
 
-    while True:
-        try:
-            cursor.callproc('score_question', (args['id'], question_score))
+    with closing(db.cursor()) as cursor:
+        while True:
+            try:
+                cursor.callproc('score_question', (args['id'], question_score))
 
-            break
-        except errors.ProgrammingError:
-            if retry_count < 5:
-                app.logger.warn(f'Unable to call procedure. Sleeping for {SLEEP_AMOUNT} seconds and retrying.')
+                break
+            except errors.ProgrammingError:
+                if retry_count < 5:
+                    app.logger.warn(f'Unable to call procedure. Sleeping for {SLEEP_AMOUNT} seconds and retrying.')
 
-                sleep(SLEEP_AMOUNT)
+                    sleep(SLEEP_AMOUNT)
 
-                retry_count -= - 1
-                app.logger.warn(f'Retrying attempt #{retry_count}')
-                continue
-            else:
-                app.logger.error('Maximum number of retries reached.')
-                raise
+                    retry_count -= - 1
+                    app.logger.warn(f'Retrying attempt #{retry_count}')
+
+                    continue
+                else:
+                    app.logger.error('Maximum number of retries reached.')
+
+                    raise
 
     retry_count = 0
     db.commit()

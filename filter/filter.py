@@ -4,6 +4,7 @@ import schedule
 from time import sleep
 from profanity_check import predict_prob
 from db_connection.connect_helper import set_logger, connect_to_db, SLEEP_AMOUNT
+from contextlib import closing
 import mysql.connector.errors as errors
 
 db = None
@@ -54,38 +55,37 @@ def filter_profanity(question_id, ans1, ans2, cursor):
 def scan_user_submitted_questions():
     global retry_count
 
-    cursor = db.cursor()
+    with closing(db.cursor()) as cursor:
+        while True:
+            try:
+                cursor.callproc('get_user_submitted_questions')
 
-    while True:
-        try:
-            cursor.callproc('get_user_submitted_questions')
+                break
+            except errors.ProgrammingError:
+                if retry_count < 5:
+                    logger.warn(f'Unable to call procedure. Sleeping for {SLEEP_AMOUNT} and retrying.')
 
-            break
-        except errors.ProgrammingError:
-            if retry_count < 5:
-                logger.warn(f'Unable to call procedure. Sleeping for {SLEEP_AMOUNT} and retrying.')
+                    sleep(SLEEP_AMOUNT)
 
-                sleep(SLEEP_AMOUNT)
+                    retry_count -= - 1
+                    logger.warn(f'Retrying attempt #{retry_count}')
+                    continue
+                else:
+                    logger.error('Maximum number of retries reached.')
+                    raise
 
-                retry_count -= - 1
-                logger.warn(f'Retrying attempt #{retry_count}')
-                continue
-            else:
-                logger.error('Maximum number of retries reached.')
-                raise
+        retry_count = 0
 
-    retry_count = 0
+        for result in cursor.stored_results():
+            for row in result.fetchall():
+                question_id = row[0]
+                ans1 = row[1]
+                ans2 = row[2]
 
-    for result in cursor.stored_results():
-        for row in result.fetchall():
-            question_id = row[0]
-            ans1 = row[1]
-            ans2 = row[2]
+                res = filter_profanity(question_id, ans1, ans2, cursor)
 
-            res = filter_profanity(question_id, ans1, ans2, cursor)
-
-            if res is True:
-                logger.info(f'Flagging {row} for profanity')
+                if res is True:
+                    logger.info(f'Flagging {row} for profanity')
 
 
 def get_rerun_timer():
@@ -209,45 +209,44 @@ def filter_priority(question_id, views, priority, cursor):
 def scan_question_pool():
     global retry_count
 
-    cursor = db.cursor()
+    with closing(db.cursor()) as cursor:
+        while True:
+            try:
+                cursor.callproc('get_question_pool')
 
-    while True:
-        try:
-            cursor.callproc('get_question_pool')
-
-            break
-        except errors.ProgrammingError:
-            if retry_count < 5:
-                logger.warn(f'Unable to call procedure. Sleeping for {SLEEP_AMOUNT} and retrying.')
-
-                sleep(SLEEP_AMOUNT)
-
-                retry_count -= - 1
-                logger.warn(f'Retrying attempt #{retry_count}')
-                continue
-            else:
-                logger.error('Maximum number of retries reached.')
-                raise
-
-    retry_count = 0
-
-    for result in cursor.stored_results():
-        for row in result.fetchall():
-            question_id = row[0]
-            score = row[5]
-            views = row[6]
-            priority = row[7]
-
-            res = filter_priority(question_id, views, priority, cursor)
-
-            if res is True:
-                logger.info(f'Changed priority for {row}')
                 break
+            except errors.ProgrammingError:
+                if retry_count < 5:
+                    logger.warn(f'Unable to call procedure. Sleeping for {SLEEP_AMOUNT} and retrying.')
 
-            res = filter_low_score_question(question_id, views, score, cursor)
+                    sleep(SLEEP_AMOUNT)
 
-            if res is True:
-                logger.info(f'Flagging {row} for low score')
+                    retry_count -= - 1
+                    logger.warn(f'Retrying attempt #{retry_count}')
+                    continue
+                else:
+                    logger.error('Maximum number of retries reached.')
+                    raise
+
+        retry_count = 0
+
+        for result in cursor.stored_results():
+            for row in result.fetchall():
+                question_id = row[0]
+                score = row[5]
+                views = row[6]
+                priority = row[7]
+
+                res = filter_priority(question_id, views, priority, cursor)
+
+                if res is True:
+                    logger.info(f'Changed priority for {row}')
+                    break
+
+                res = filter_low_score_question(question_id, views, score, cursor)
+
+                if res is True:
+                    logger.info(f'Flagging {row} for low score')
 
 
 if __name__ == '__main__':
